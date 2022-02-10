@@ -18,11 +18,8 @@ var (
 	pagesFiles embed.FS
 )
 
-func NewEngine(connection *data.Connection, logger *logs.Logger) *gin.Engine {
-	router := gin.Default()
-	c := controller.NewController(connection, logger, &staticFiles, &pagesFiles)
-	router.Use(gin.Logger())
-	router.Use(func(context *gin.Context) {
+func checkLogin(c *controller.Controller) gin.HandlerFunc {
+	return func(context *gin.Context) {
 		value, getError := context.Cookie(values.CookieName)
 		if getError == nil {
 			_, found := c.Connection.Cache.GetUserSession(value)
@@ -30,7 +27,26 @@ func NewEngine(connection *data.Connection, logger *logs.Logger) *gin.Engine {
 				context.Redirect(http.StatusFound, values.DashboardLocation)
 			}
 		}
-	})
+	}
+}
+
+func requiresLogin(c *controller.Controller) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		value, getError := context.Cookie(values.CookieName)
+		if getError == nil {
+			_, found := c.Connection.Cache.GetUserSession(value)
+			if found {
+				return
+			}
+		}
+		context.Redirect(http.StatusFound, values.LoginLocation)
+	}
+}
+
+func NewEngine(connection *data.Connection, logger *logs.Logger) *gin.Engine {
+	router := gin.Default()
+	c := controller.NewController(connection, logger, &staticFiles, &pagesFiles)
+	router.Use(gin.Logger())
 	router.GET(values.RootLocation, func(context *gin.Context) {
 		context.Redirect(http.StatusFound, values.LoginLocation)
 	})
@@ -43,9 +59,12 @@ func NewEngine(connection *data.Connection, logger *logs.Logger) *gin.Engine {
 			http.FS(staticFiles),
 		)
 	})
-	router.GET(values.LoginLocation, handlers.GetLogin(c))
-	router.POST(values.LoginLocation, handlers.PostLogin(c))
-	router.GET(values.RegisterLocation, handlers.GetRegister(c))
-	router.POST(values.RegisterLocation, handlers.PostRegister(c))
+	router.GET(values.LoginLocation, checkLogin(c), handlers.GetLogin(c))
+	router.POST(values.LoginLocation, checkLogin(c), handlers.PostLogin(c))
+	router.GET(values.RegisterLocation, checkLogin(c), handlers.GetRegister(c))
+	router.POST(values.RegisterLocation, checkLogin(c), handlers.PostRegister(c))
+	router.GET(values.DashboardLocation, requiresLogin(c), handlers.GetDashboard(c))
+	router.GET(values.LogoutLocation, requiresLogin(c), handlers.Logout(c))
+	router.POST(values.LogoutLocation, requiresLogin(c), handlers.Logout(c))
 	return router
 }

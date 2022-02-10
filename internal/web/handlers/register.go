@@ -30,21 +30,29 @@ func PostRegister(c *controller.Controller) gin.HandlerFunc {
 			password             = context.PostForm(values.PasswordArgument)
 			passwordConfirmation = context.PostForm(values.PasswordConfirmationArgument)
 		)
-		if password != passwordConfirmation {
-			context.Redirect(http.StatusFound, values.RegisterLocation)
+		if password == passwordConfirmation {
+			user := &objects.User{
+				Name:              context.PostForm(values.NameArgument),
+				LastAndMiddleName: context.PostForm(values.LastAndMiddleNameArgument),
+				PersonalID:        context.PostForm(values.PersonalID),
+				Email:             context.PostForm(values.EmailArgument),
+				Password:          password,
+			}
+			if c.Register(context, user) {
+				context.Redirect(http.StatusFound, values.LoginLocation)
+				return
+			}
+		}
+		file, openError := c.OpenPage("failed-register.html")
+		if openError != nil {
+			go c.LogError(context, openError)
 			return
 		}
-		user := &objects.User{
-			Name:              context.PostForm(values.NameArgument),
-			LastAndMiddleName: context.PostForm(values.LastAndMiddleNameArgument),
-			PersonalID:        context.PostForm(values.PersonalID),
-			Email:             context.PostForm(values.EmailArgument),
-			Password:          password,
+		defer file.Close()
+		_, copyError := io.Copy(context.Writer, file)
+		if copyError != nil {
+			go c.LogError(context, openError)
 		}
-		if c.Register(context, user) {
-			context.Redirect(http.StatusFound, values.LoginLocation)
-		} else {
-			context.Redirect(http.StatusFound, values.RegisterLocation)
-		}
+
 	}
 }

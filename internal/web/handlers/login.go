@@ -32,7 +32,28 @@ func PostLogin(c *controller.Controller) gin.HandlerFunc {
 			context.SetCookie(values.CookieName, cookie, 0, "/", "", true, true)
 			context.Redirect(http.StatusFound, values.DashboardLocation)
 		} else {
-			context.Redirect(http.StatusFound, values.LoginLocation)
+			file, openError := c.OpenPage("failed-login.html")
+			if openError != nil {
+				go c.LogError(context, openError)
+				return
+			}
+			defer file.Close()
+			_, copyError := io.Copy(context.Writer, file)
+			if copyError != nil {
+				go c.LogError(context, openError)
+			}
 		}
+	}
+}
+
+func Logout(c *controller.Controller) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		cookie, getCookieError := context.Cookie(values.CookieName)
+		if getCookieError != nil {
+			c.LogError(context, getCookieError)
+			return
+		}
+		c.Connection.Cache.DeleteUserSession(cookie)
+		context.Redirect(http.StatusFound, values.LoginLocation)
 	}
 }
