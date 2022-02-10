@@ -16,11 +16,15 @@ func init() {
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "Usage: %s IP:PORT", os.Args[0])
+		return
+	}
 	database := memory.NewMemory()
 	connection := data.NewConnection(database)
 	logger := logs.NewLogger(os.Stderr)
 	engine := web.NewEngine(connection, logger)
-	executionError := engine.Run(":8080")
+	executionError := engine.Run(os.Args[1])
 	if executionError != nil {
 		log.Fatal(executionError)
 	}
