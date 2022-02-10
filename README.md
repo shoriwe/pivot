@@ -15,7 +15,7 @@ You can find precompiled binaries [here](https://github.com/shoriwe/pivot/releas
 You will need `go >= 1.17`.
 
 ```shell
-go install github.com/shoriwe/pivot/cmd/demo
+go install github.com/shoriwe/pivot/cmd/demo@latest
 ```
 
 Make sure you have your `go/bin` set in your `PATH`
