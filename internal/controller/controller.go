@@ -40,23 +40,23 @@ func checkName(name string) bool {
 	return nameRegexp.MatchString(name)
 }
 
-func checkUser(user *objects.User) bool {
+func checkUser(user *objects.User) (string, bool) {
 	if !checkName(user.Name) {
-		return false
+		return "Invalid Name", false
 	}
 	if !checkName(user.LastAndMiddleName) {
-		return false
+		return "Invalid Middle and Last name", false
 	}
 	if !checkEmail(user.Email) {
-		return false
+		return "Invalid email", false
 	}
 	if !checkPassword(user.Password) {
-		return false
+		return "Invalid password, it should have at least 8 characters, 1 number and 1 special character", false
 	}
 	if !checkPersonalID(user.PersonalID) {
-		return false
+		return "Invalid Personal ID", false
 	}
-	return true
+	return "Everything is ok", true
 }
 
 type Controller struct {
@@ -65,19 +65,20 @@ type Controller struct {
 	*logs.Logger
 }
 
-func (controller *Controller) Register(context *gin.Context, user *objects.User) bool {
-	if !checkUser(user) {
-		return false
+func (controller *Controller) Register(context *gin.Context, user *objects.User) (string, bool) {
+	errorMessage, isValid := checkUser(user)
+	if !isValid {
+		return errorMessage, false
 	}
 	user.Password = hex.EncodeToString(data.CalcHash(user.Password))
 	succeed, registerError := controller.Connection.DB.Register(user)
 	go controller.LogRegistration(context, user, succeed)
 	if succeed {
-		return true
+		return "", true
 	} else if registerError != nil {
 		go controller.LogError(context, registerError)
 	}
-	return false
+	return "Registration failed", false
 }
 
 func (controller *Controller) Logout(context *gin.Context, cookie string) bool {
